@@ -13,7 +13,7 @@ import {
   DragOverEvent,
   DragEndEvent,
 } from '@dnd-kit/core'
-import { sortableKeyboardCoordinates, horizontalListSortingStrategy, SortableContext } from '@dnd-kit/sortable'
+import { sortableKeyboardCoordinates, horizontalListSortingStrategy, SortableContext, arrayMove } from '@dnd-kit/sortable'
 import { Board, Task } from '@/lib/types'
 import BoardColumn from './BoardColumn'
 import TaskCard from './TaskCard'
@@ -98,7 +98,7 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
     }
   }
 
-  const handleDragEnd = async (e: DragEndEvent) => {
+  const handleDragEnd = (e: DragEndEvent) => {
     setActiveTask(null)
     setActiveBoard(null)
     const { active, over } = e
@@ -110,30 +110,25 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
     // Handle Board Reordering
     if (active.data.current?.type === 'Column') {
       if (activeId !== overId) {
-        let newBoards = [...boards]
-        const oldIndex = newBoards.findIndex(b => b.id === activeId)
-        const newIndex = newBoards.findIndex(b => b.id === overId)
+        setBoards(prevBoards => {
+          const oldIndex = prevBoards.findIndex(b => b.id === activeId)
+          const newIndex = prevBoards.findIndex(b => b.id === overId)
 
-        const [moved] = newBoards.splice(oldIndex, 1)
-        newBoards.splice(newIndex, 0, moved)
+          let newBoards = arrayMove(prevBoards, oldIndex, newIndex)
+          // Re-calculate order Indexes (1000 interval)
+          newBoards = newBoards.map((b, idx) => ({ ...b, orderIndex: (idx + 1) * 1000 }))
 
-        // Re-calculate order Indexes (1000 interval)
-        newBoards = newBoards.map((b, idx) => ({ ...b, orderIndex: (idx + 1) * 1000 }))
-        setBoards(newBoards)
-
-        try {
-          await fetch('/api/boards/reorder', {
+          // Fire background sync
+          fetch('/api/boards/reorder', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               boardOrders: newBoards.map(b => ({ id: b.id, orderIndex: b.orderIndex }))
             })
-          })
-          onReload()
-        } catch (error) {
-          console.error(error)
-          onReload()
-        }
+          }).catch(console.error)
+
+          return newBoards
+        })
       }
       return
     }
@@ -156,22 +151,40 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
       newOrderIndex = lastTask ? lastTask.orderIndex + 1000 : 1000
     }
 
-    try {
-      await fetch('/api/tasks/move', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          taskId: activeId,
-          fromBoardId: activeTaskFinal.boardId,
-          toBoardId: activeTaskFinal.boardId,
-          newOrderIndex: newOrderIndex
-        })
+    // Optimistically update tasks array
+    setTasks(prevTasks => {
+      const activeOldIndex = prevTasks.findIndex(t => t.id === activeId)
+      const overOldIndex = prevTasks.findIndex(t => t.id === overId)
+
+      let newTasks = [...prevTasks]
+
+      if (activeOldIndex !== -1 && overOldIndex !== -1 && isOverTask) {
+        // Move array item so dnd-kit registers it instantly
+        newTasks = arrayMove(newTasks, activeOldIndex, overOldIndex)
+      }
+
+      const finalIndex = newTasks.findIndex(t => t.id === activeId)
+      if (finalIndex !== -1) {
+        newTasks[finalIndex] = { ...newTasks[finalIndex], orderIndex: newOrderIndex }
+      }
+
+      return newTasks
+    })
+
+    // Background DB Sync
+    fetch('/api/tasks/move', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        taskId: activeId,
+        fromBoardId: activeTaskFinal.boardId,
+        toBoardId: activeTaskFinal.boardId,
+        newOrderIndex: newOrderIndex
       })
-      onReload()
-    } catch (error) {
-      console.error(error)
-      onReload()
-    }
+    }).catch(error => {
+      console.error('Task move failed:', error)
+      onReload() // Revert to server state
+    })
   }
 
   const tasksByBoard = useMemo(() => {
