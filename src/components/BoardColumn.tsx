@@ -25,8 +25,8 @@ export default function BoardColumn({ board, tasks, onAddTask, onEditTask, onTog
   })
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: CSS.Translate.toString(transform),
+    transition: isDragging ? undefined : transition,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 999 : 1,
     height: '100%',
@@ -86,7 +86,6 @@ export default function BoardColumn({ board, tasks, onAddTask, onEditTask, onTog
 
       {/* Droppable Area for Tasks */}
       <div
-        ref={setNodeRef}
         style={{
           flex: 1,
           padding: '0 12px 12px 12px',

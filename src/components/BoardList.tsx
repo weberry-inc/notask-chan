@@ -35,7 +35,7 @@ export default function BoardList({ boards, tasks, setTasks, setBoards, onAddTas
   const [activeBoard, setActiveBoard] = useState<Board | null>(null)
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 2 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 

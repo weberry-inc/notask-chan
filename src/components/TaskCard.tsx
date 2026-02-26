@@ -20,10 +20,11 @@ export default function TaskCard({ task, onClick, onToggleComplete }: TaskCardPr
     }
   })
 
-  // We only transform visually, the actual data updates later
+  // Use Translate instead of Transform to avoid scaling bugs during drag
+  // Also explicitly disable the transition while actively dragging to prevent rubber-banding
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: CSS.Translate.toString(transform),
+    transition: isDragging ? undefined : transition,
     opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 999 : 1,
   }
