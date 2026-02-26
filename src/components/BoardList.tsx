@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo, memo } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -30,7 +30,7 @@ type BoardListProps = {
   onReload: () => void
 }
 
-export default function BoardList({ boards, tasks, setTasks, setBoards, onAddTask, onEditTask, onToggleComplete, onDeleteBoard, onReload }: BoardListProps) {
+const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, onAddTask, onEditTask, onToggleComplete, onDeleteBoard, onReload }: BoardListProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [activeBoard, setActiveBoard] = useState<Board | null>(null)
 
@@ -174,6 +174,20 @@ export default function BoardList({ boards, tasks, setTasks, setBoards, onAddTas
     }
   }
 
+  const tasksByBoard = useMemo(() => {
+    const map = new Map<string, Task[]>()
+    boards.forEach(b => map.set(b.id, []))
+    tasks.forEach(t => {
+      let bTasks = map.get(t.boardId)
+      if (!bTasks) {
+        bTasks = []
+        map.set(t.boardId, bTasks)
+      }
+      bTasks.push(t)
+    })
+    return map
+  }, [boards, tasks])
+
   return (
     <DndContext
       sensors={sensors}
@@ -183,17 +197,20 @@ export default function BoardList({ boards, tasks, setTasks, setBoards, onAddTas
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={boards.map(b => b.id)} strategy={horizontalListSortingStrategy}>
-        {boards.map(board => (
-          <BoardColumn
-            key={board.id}
-            board={board}
-            tasks={tasks.filter(t => t.boardId === board.id)}
-            onAddTask={onAddTask}
-            onEditTask={onEditTask}
-            onToggleComplete={onToggleComplete}
-            onDeleteBoard={onDeleteBoard}
-          />
-        ))}
+        {boards.map(board => {
+          const boardTasks = tasksByBoard.get(board.id) || []
+          return (
+            <BoardColumn
+              key={board.id}
+              board={board}
+              tasks={boardTasks}
+              onAddTask={onAddTask}
+              onEditTask={onEditTask}
+              onToggleComplete={onToggleComplete}
+              onDeleteBoard={onDeleteBoard}
+            />
+          )
+        })}
       </SortableContext>
 
       <DragOverlay>
@@ -212,4 +229,6 @@ export default function BoardList({ boards, tasks, setTasks, setBoards, onAddTas
       </DragOverlay>
     </DndContext>
   )
-}
+})
+
+export default BoardList

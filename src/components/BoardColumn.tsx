@@ -1,5 +1,6 @@
 'use client'
 
+import { memo, useMemo } from 'react'
 import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Board, Task } from '@/lib/types'
@@ -15,7 +16,7 @@ type BoardColumnProps = {
   onDeleteBoard?: (boardId: string) => void
 }
 
-export default function BoardColumn({ board, tasks, onAddTask, onEditTask, onToggleComplete, onDeleteBoard }: BoardColumnProps) {
+const BoardColumn = memo(function BoardColumn({ board, tasks, onAddTask, onEditTask, onToggleComplete, onDeleteBoard }: BoardColumnProps) {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
     id: board.id,
     data: {
@@ -97,7 +98,7 @@ export default function BoardColumn({ board, tasks, onAddTask, onEditTask, onTog
       >
         <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map(task => (
-            <TaskCard key={task.id} task={task} onClick={() => onEditTask(task)} onToggleComplete={onToggleComplete} />
+            <TaskCard key={task.id} task={task} onClick={onEditTask} onToggleComplete={onToggleComplete} />
           ))}
         </SortableContext>
 
@@ -112,4 +113,6 @@ export default function BoardColumn({ board, tasks, onAddTask, onEditTask, onTog
       </div>
     </div>
   )
-}
+})
+
+export default BoardColumn

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Board, Task, Member } from '@/lib/types'
 import Header from '@/components/Header'
 import BoardList from '@/components/BoardList'
@@ -70,21 +70,21 @@ export default function Home() {
   }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
   // Open modal for new task
-  const openNewTaskModal = (boardId: string) => {
+  const openNewTaskModal = useCallback((boardId: string) => {
     setEditingTask(null)
     setDefaultBoardId(boardId)
     setIsModalOpen(true)
-  }
+  }, [])
 
   // Open modal for editing
-  const openEditTaskModal = (task: Task) => {
+  const openEditTaskModal = useCallback((task: Task) => {
     setEditingTask(task)
     setDefaultBoardId(task.boardId)
     setIsModalOpen(true)
-  }
+  }, [])
 
   // Quick toggle completion status
-  const handleToggleComplete = async (task: Task, newStatus: boolean) => {
+  const handleToggleComplete = useCallback(async (task: Task, newStatus: boolean) => {
     // Optimistic UI update
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, isCompleted: newStatus } : t))
 
@@ -98,12 +98,12 @@ export default function Home() {
       console.error('Failed to toggle completion status', e)
       fetchData() // Revert to server state if failed
     }
-  }
+  }, [])
 
   // Reload action
-  const handleReload = () => {
+  const handleReload = useCallback(() => {
     fetchData()
-  }
+  }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
   // Create new board
   const [newBoardTitle, setNewBoardTitle] = useState('')
@@ -128,7 +128,7 @@ export default function Home() {
   }
 
   // Delete board
-  const handleDeleteBoard = async (boardId: string) => {
+  const handleDeleteBoard = useCallback(async (boardId: string) => {
     try {
       await fetch(`/api/boards/${boardId}`, {
         method: 'DELETE',
@@ -137,7 +137,7 @@ export default function Home() {
     } catch (e) {
       console.error('Failed to delete board', e)
     }
-  }
+  }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
   if (isLoading) {
     return (

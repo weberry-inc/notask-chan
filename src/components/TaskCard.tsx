@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Task } from '@/lib/types'
@@ -7,11 +8,11 @@ import { CheckCircle2, User } from 'lucide-react'
 
 type TaskCardProps = {
   task: Task
-  onClick: () => void
+  onClick: (task: Task) => void
   onToggleComplete: (task: Task, newStatus: boolean) => void
 }
 
-export default function TaskCard({ task, onClick, onToggleComplete }: TaskCardProps) {
+const TaskCard = memo(function TaskCard({ task, onClick, onToggleComplete }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: {
@@ -55,7 +56,7 @@ export default function TaskCard({ task, onClick, onToggleComplete }: TaskCardPr
         }}
         onClick={(e) => {
           // If they click, prevent drag event if possible, but dnd-kit handles this nicely.
-          onClick()
+          onClick(task)
         }}
         onPointerDown={(e) => {
           // We can't stop propagation if we want dnd-kit to work,
@@ -146,4 +147,6 @@ export default function TaskCard({ task, onClick, onToggleComplete }: TaskCardPr
       </div>
     </div>
   )
-}
+})
+
+export default TaskCard
