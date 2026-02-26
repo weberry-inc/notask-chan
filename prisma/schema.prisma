@@ -1,0 +1,69 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  boards    Board[]
+  members   Member[]
+  tasks     Task[]
+}
+
+model Member {
+  id          String    @id @default(cuid())
+  workspaceId String
+  displayName String
+
+  createdAt   DateTime  @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+}
+
+model Board {
+  id          String   @id @default(cuid())
+  workspaceId String
+  title       String
+  orderIndex  Float
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+
+  @@index([workspaceId, orderIndex])
+}
+
+model Task {
+  id               String    @id @default(cuid())
+  workspaceId      String
+  boardId          String
+  title            String
+  description      String?
+  assigneeMemberId String?
+
+  isCompleted      Boolean   @default(false)
+  completedAt      DateTime?
+  archivedAt       DateTime?
+  deletedAt        DateTime?
+  orderIndex       Float
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  board            Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  assignee         Member?   @relation(fields: [assigneeMemberId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, boardId, deletedAt, archivedAt, orderIndex])
+  @@index([workspaceId, title])
+}

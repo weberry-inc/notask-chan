@@ -1,27 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --background: #f8f6fb;
+  /* Light purple background */
+  --surface: #ffffff;
+  --surface-hover: #f3f0f7;
+  --surface-active: #e9e5f0;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+  --primary: #9d4edd;
+  /* Vibrant purple accent */
+  --primary-hover: #7b2cbf;
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
+  --text-primary: #2b2d42;
+  --text-secondary: #6c757d;
+  --text-inverse: #ffffff;
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --border: #e0dbea;
+  --border-focus: #9d4edd;
+
+  --success: #00b4d8;
+  --danger: #ef233c;
+  --warning: #ffb703;
+
+  --shadow-sm: 0 2px 4px rgba(157, 78, 221, 0.08);
+  /* Soft purple tinted shadow */
+  --shadow-md: 0 4px 12px rgba(157, 78, 221, 0.12);
+  --shadow-lg: 0 12px 24px rgba(157, 78, 221, 0.15);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  --board-bg: #f3f0f7;
+  --card-bg: #ffffff;
+
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
 }
 
 * {
@@ -30,13 +44,134 @@ body {
   margin: 0;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+html,
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--background);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+  /* Avoid double scrolling */
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: var(--text-inverse);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-secondary {
+  background-color: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background-color: var(--surface-hover);
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--text-secondary);
+}
+
+.btn-ghost:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+/* Inputs */
+.input {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  background-color: var(--surface);
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(87, 157, 255, 0.3);
+}
+
+/* Layout */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-header {
+  height: 56px;
+  min-height: 56px;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+  z-index: 10;
+}
+
+.board-area {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  display: flex;
+  padding: 16px;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+/* Scrollbar styling for modern look */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
 }
