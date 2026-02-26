@@ -20,9 +20,12 @@ export async function POST(request: Request) {
     // Use default workspace if not provided (MVP logic)
     let wsId = workspaceId
     if (!wsId) {
-      const workspace = await prisma.workspace.findFirst()
+      let workspace = await prisma.workspace.findFirst()
       if (!workspace) {
-        return NextResponse.json({ error: 'Workspace not found' }, { status: 400 })
+        // Auto-create workspace for MVP if missing
+        workspace = await prisma.workspace.create({
+          data: { name: 'Weberry MVP' }
+        })
       }
       wsId = workspace.id
     }

@@ -11,8 +11,12 @@ export async function GET(request: Request) {
 
   try {
     // Determine the default workspace
-    const workspace = await prisma.workspace.findFirst()
-    if (!workspace) return NextResponse.json([])
+    let workspace = await prisma.workspace.findFirst()
+    if (!workspace) {
+      workspace = await prisma.workspace.create({
+        data: { name: 'Weberry MVP' }
+      })
+    }
 
     const where: any = { workspaceId: workspace.id }
 
@@ -60,8 +64,12 @@ export async function POST(request: Request) {
 
     let wsId = workspaceId
     if (!wsId) {
-      const workspace = await prisma.workspace.findFirst()
-      if (!workspace) return NextResponse.json({ error: 'Workspace not found' }, { status: 400 })
+      let workspace = await prisma.workspace.findFirst()
+      if (!workspace) {
+        workspace = await prisma.workspace.create({
+          data: { name: 'Weberry MVP' }
+        })
+      }
       wsId = workspace.id
     }
 
