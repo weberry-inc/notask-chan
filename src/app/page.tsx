@@ -66,7 +66,10 @@ export default function Home() {
 
   // Refetch when filters change
   useEffect(() => {
-    fetchData()
+    const timer = setTimeout(() => {
+      fetchData()
+    }, 300)
+    return () => clearTimeout(timer)
   }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
   // Open modal for new task
@@ -140,15 +143,15 @@ export default function Home() {
   }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
   // Edit board
-  const handleEditBoard = useCallback(async (boardId: string, newTitle: string) => {
+  const handleEditBoard = useCallback(async (boardId: string, newTitle: string, newColor?: string | null) => {
     // Optimistic UI update
-    setBoards(prev => prev.map(b => b.id === boardId ? { ...b, title: newTitle } : b))
+    setBoards(prev => prev.map(b => b.id === boardId ? { ...b, title: newTitle, color: newColor ?? b.color } : b))
 
     try {
       await fetch(`/api/boards/${boardId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newTitle })
+        body: JSON.stringify({ title: newTitle, color: newColor })
       })
     } catch (e) {
       console.error('Failed to update board', e)

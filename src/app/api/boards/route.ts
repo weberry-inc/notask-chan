@@ -15,7 +15,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { title, orderIndex, workspaceId } = await request.json()
+    const { title, color, orderIndex, workspaceId } = await request.json()
 
     // Use default workspace if not provided (MVP logic)
     let wsId = workspaceId
@@ -43,6 +43,7 @@ export async function POST(request: Request) {
     const board = await prisma.board.create({
       data: {
         title,
+        color: color || null,
         orderIndex: finalOrderIndex,
         workspaceId: wsId,
       },

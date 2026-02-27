@@ -13,6 +13,7 @@ export type Board = {
   id: string;
   workspaceId: string;
   title: string;
+  color?: string | null;
   orderIndex: number;
 }
 

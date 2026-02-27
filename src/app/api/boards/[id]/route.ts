@@ -6,10 +6,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
   try {
     const body = await request.json()
-    const { title, orderIndex } = body
+    const { title, color, orderIndex } = body
 
     const dataToUpdate: any = {}
     if (title !== undefined) dataToUpdate.title = title
+    if (color !== undefined) dataToUpdate.color = color
     if (orderIndex !== undefined) dataToUpdate.orderIndex = orderIndex
 
     const board = await prisma.board.update({

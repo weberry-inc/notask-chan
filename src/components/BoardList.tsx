@@ -27,7 +27,7 @@ type BoardListProps = {
   onEditTask: (task: Task) => void
   onToggleComplete: (task: Task, newStatus: boolean) => void
   onDeleteBoard?: (boardId: string) => void
-  onEditBoard?: (boardId: string, newTitle: string) => void
+  onEditBoard?: (boardId: string, newTitle: string, newColor?: string | null) => void
   onReload: () => void
 }
 

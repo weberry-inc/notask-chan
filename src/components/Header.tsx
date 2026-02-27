@@ -1,6 +1,6 @@
 'use client'
 
-import { Search, Filter, Archive, Trash2 } from 'lucide-react'
+import { Search, Archive, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 
 type HeaderProps = {
@@ -40,7 +40,7 @@ export default function Header(props: HeaderProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         {/* Assignee Filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Filter size={16} color="var(--text-secondary)" />
+
           <select
             className="input"
             style={{ minWidth: '120px', cursor: 'pointer' }}
