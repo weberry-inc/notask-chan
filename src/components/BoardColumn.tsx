@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useMemo } from 'react'
+import { memo, useMemo, useState, useRef, useEffect } from 'react'
 import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Board, Task } from '@/lib/types'
@@ -14,9 +14,29 @@ type BoardColumnProps = {
   onEditTask: (task: Task) => void
   onToggleComplete: (task: Task, newStatus: boolean) => void
   onDeleteBoard?: (boardId: string) => void
+  onEditBoard?: (boardId: string, newTitle: string) => void
 }
 
-const BoardColumn = memo(function BoardColumn({ board, tasks, onAddTask, onEditTask, onToggleComplete, onDeleteBoard }: BoardColumnProps) {
+const BoardColumn = memo(function BoardColumn({ board, tasks, onAddTask, onEditTask, onToggleComplete, onDeleteBoard, onEditBoard }: BoardColumnProps) {
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [editTitleValue, setEditTitleValue] = useState(board.title)
+  const titleInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus()
+    }
+  }, [isEditingTitle])
+
+  const handleTitleSubmit = () => {
+    if (editTitleValue.trim() && editTitleValue !== board.title) {
+      onEditBoard?.(board.id, editTitleValue.trim())
+    } else {
+      setEditTitleValue(board.title)
+    }
+    setIsEditingTitle(false)
+  }
+
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
     id: board.id,
     data: {
@@ -61,7 +81,30 @@ const BoardColumn = memo(function BoardColumn({ board, tasks, onAddTask, onEditT
           >
             <GripHorizontal size={16} />
           </button>
-          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--primary-hover)' }}>{board.title}</h3>
+          {isEditingTitle ? (
+            <input
+              ref={titleInputRef}
+              style={{ fontSize: '15px', fontWeight: 600, color: 'var(--primary-hover)', backgroundColor: 'transparent', border: '1px solid var(--border)', borderRadius: '4px', padding: '2px 4px', width: '100%', outline: 'none' }}
+              value={editTitleValue}
+              onChange={(e) => setEditTitleValue(e.target.value)}
+              onBlur={handleTitleSubmit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleTitleSubmit()
+                if (e.key === 'Escape') {
+                  setEditTitleValue(board.title)
+                  setIsEditingTitle(false)
+                }
+              }}
+            />
+          ) : (
+            <h3
+              style={{ fontSize: '15px', fontWeight: 600, color: 'var(--primary-hover)', cursor: 'pointer', flex: 1, margin: 0 }}
+              onClick={() => setIsEditingTitle(true)}
+              title="クリックして名前を変更"
+            >
+              {board.title}
+            </h3>
+          )}
           <span style={{ fontSize: '12px', color: 'var(--text-secondary)', backgroundColor: 'var(--surface)', padding: '2px 8px', borderRadius: '12px', fontWeight: 500 }}>
             {tasks.length}
           </span>
@@ -108,7 +151,7 @@ const BoardColumn = memo(function BoardColumn({ board, tasks, onAddTask, onEditT
           style={{ width: '100%', justifyContent: 'flex-start', color: 'var(--text-secondary)', marginTop: '4px' }}
           onClick={() => onAddTask(board.id)}
         >
-          <Plus size={16} /> ＋ タスク追加
+          <Plus size={16} /> タスク追加
         </button>
       </div>
     </div>

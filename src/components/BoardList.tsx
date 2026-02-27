@@ -27,10 +27,11 @@ type BoardListProps = {
   onEditTask: (task: Task) => void
   onToggleComplete: (task: Task, newStatus: boolean) => void
   onDeleteBoard?: (boardId: string) => void
+  onEditBoard?: (boardId: string, newTitle: string) => void
   onReload: () => void
 }
 
-const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, onAddTask, onEditTask, onToggleComplete, onDeleteBoard, onReload }: BoardListProps) {
+const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, onAddTask, onEditTask, onToggleComplete, onDeleteBoard, onEditBoard, onReload }: BoardListProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [activeBoard, setActiveBoard] = useState<Board | null>(null)
 
@@ -221,6 +222,7 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
               onEditTask={onEditTask}
               onToggleComplete={onToggleComplete}
               onDeleteBoard={onDeleteBoard}
+              onEditBoard={onEditBoard}
             />
           )
         })}

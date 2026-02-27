@@ -139,6 +139,23 @@ export default function Home() {
     }
   }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
+  // Edit board
+  const handleEditBoard = useCallback(async (boardId: string, newTitle: string) => {
+    // Optimistic UI update
+    setBoards(prev => prev.map(b => b.id === boardId ? { ...b, title: newTitle } : b))
+
+    try {
+      await fetch(`/api/boards/${boardId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle })
+      })
+    } catch (e) {
+      console.error('Failed to update board', e)
+      fetchData() // Revert to server state if failed
+    }
+  }, [assigneeFilter, searchQuery, showArchived, showDeleted])
+
   if (isLoading) {
     return (
       <div className="app-container" style={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -171,6 +188,7 @@ export default function Home() {
           onEditTask={openEditTaskModal}
           onToggleComplete={handleToggleComplete}
           onDeleteBoard={handleDeleteBoard}
+          onEditBoard={handleEditBoard}
           onReload={handleReload}
         />
 

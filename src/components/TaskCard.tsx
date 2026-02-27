@@ -50,6 +50,11 @@ const TaskCard = memo(function TaskCard({ task, onClick, onToggleComplete }: Tas
           boxShadow: 'var(--shadow-sm)',
           cursor: 'grab',
           border: '1px solid transparent',
+          borderLeft: task.assignee?.displayName.includes('ゆう')
+            ? '4px solid #60a5fa' // Blueish for ゆうくん
+            : task.assignee?.displayName.includes('未来')
+              ? '4px solid #f472b6' // Pinkish for 未来さん
+              : '1px solid transparent',
           position: 'relative',
           transition: 'box-shadow 0.2s, border-color 0.2s',
           marginBottom: '8px'
