@@ -110,10 +110,22 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
 
     // Handle Board Reordering
     if (active.data.current?.type === 'Column') {
-      if (activeId !== overId) {
+      let targetBoardId = overId
+
+      // If the board was dropped on top of a task card in another column,
+      // find which board that task belongs to.
+      if (over.data.current?.type === 'Task') {
+        targetBoardId = over.data.current.task.boardId
+      } else if (over.data.current?.type === 'Column') {
+        targetBoardId = over.id
+      }
+
+      if (activeId !== targetBoardId) {
         setBoards(prevBoards => {
           const oldIndex = prevBoards.findIndex(b => b.id === activeId)
-          const newIndex = prevBoards.findIndex(b => b.id === overId)
+          const newIndex = prevBoards.findIndex(b => b.id === targetBoardId)
+
+          if (oldIndex === -1 || newIndex === -1) return prevBoards
 
           let newBoards = arrayMove(prevBoards, oldIndex, newIndex)
           // Re-calculate order Indexes (1000 interval)

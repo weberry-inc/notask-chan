@@ -76,8 +76,10 @@ const BoardColumn = memo(function BoardColumn({ board, tasks, onAddTask, onEditT
             {...listeners}
             style={{
               background: 'none', border: 'none', cursor: 'grab',
-              color: 'var(--text-secondary)', display: 'flex', alignItems: 'center'
+              color: 'var(--text-secondary)', display: 'flex', alignItems: 'center',
+              padding: '6px', margin: '-6px', borderRadius: '4px' // Expanded hit area
             }}
+            title="ボードをドラッグして移動"
           >
             <GripHorizontal size={16} />
           </button>
