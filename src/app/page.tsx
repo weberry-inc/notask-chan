@@ -60,16 +60,26 @@ export default function Home() {
     } catch (e) {
       console.error(e)
     } finally {
-      setIsLoading(false)
+      // If we are currently fetching in the background, don't show the loading screen
+      if (isLoading) setIsLoading(false)
     }
   }
 
-  // Refetch when filters change
+  // Refetch when filters change or when polling
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchData()
     }, 300)
     return () => clearTimeout(timer)
+  }, [assigneeFilter, searchQuery, showArchived, showDeleted])
+
+  // Background Auto-Polling (Live Sync)
+  // Polls every 3 seconds to get updates from other users.
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      fetchData()
+    }, 3000)
+    return () => clearInterval(pollInterval)
   }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
   // Open modal for new task
