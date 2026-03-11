@@ -150,53 +150,64 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
     const activeTaskFinal = tasks.find(t => t.id === activeId)
     if (!activeTaskFinal) return
 
-    const boardTasks = tasks.filter(t => t.boardId === activeTaskFinal.boardId).sort((a, b) => a.orderIndex - b.orderIndex)
-    const isOverTask = over.data.current?.type === 'Task'
-    let newOrderIndex = activeTaskFinal.orderIndex
+    let targetBoardId = activeTaskFinal.boardId
+    let isOverTask = false
 
-    if (isOverTask) {
-      const overTask = tasks.find(t => t.id === overId)
-      if (overTask) {
-        newOrderIndex = overTask.orderIndex + 1
-      }
-    } else {
-      const lastTask = boardTasks[boardTasks.length - 1]
-      newOrderIndex = lastTask ? lastTask.orderIndex + 1000 : 1000
+    if (over.data.current?.type === 'Task') {
+      targetBoardId = over.data.current.task.boardId
+      isOverTask = true
+    } else if (over.data.current?.type === 'Column') {
+      targetBoardId = over.id as string
     }
 
-    // Optimistically update tasks array
     setTasks(prevTasks => {
-      const activeOldIndex = prevTasks.findIndex(t => t.id === activeId)
-      const overOldIndex = prevTasks.findIndex(t => t.id === overId)
+      // 1. Move task to new board and recompute orderIndexes for that board.
+      const boardTasks = prevTasks.filter(t => t.boardId === targetBoardId).sort((a, b) => a.orderIndex - b.orderIndex)
 
-      let newTasks = [...prevTasks]
+      let newOrderIndex = 1000
+      let activeOldIndex = prevTasks.findIndex(t => t.id === activeId)
+      let overOldIndex = prevTasks.findIndex(t => t.id === overId)
 
-      if (activeOldIndex !== -1 && overOldIndex !== -1 && isOverTask) {
-        // Move array item so dnd-kit registers it instantly
-        newTasks = arrayMove(newTasks, activeOldIndex, overOldIndex)
+      const remainingTasks = prevTasks.filter(t => t.id !== activeId)
+
+      let newBoardList = remainingTasks.filter(t => t.boardId === targetBoardId).sort((a, b) => a.orderIndex - b.orderIndex)
+
+      if (isOverTask) {
+        const overIndexInBoard = newBoardList.findIndex(t => t.id === overId)
+        if (overIndexInBoard !== -1) {
+          newBoardList.splice(overIndexInBoard, 0, { ...activeTaskFinal, boardId: targetBoardId }) // Insert before the over task
+        } else {
+          newBoardList.push({ ...activeTaskFinal, boardId: targetBoardId })
+        }
+      } else {
+        newBoardList.push({ ...activeTaskFinal, boardId: targetBoardId })
       }
 
-      const finalIndex = newTasks.findIndex(t => t.id === activeId)
-      if (finalIndex !== -1) {
-        newTasks[finalIndex] = { ...newTasks[finalIndex], orderIndex: newOrderIndex }
+      // Re-assign accurate uniform indexes for the whole board to avoid conflicts
+      newBoardList = newBoardList.map((t, idx) => ({ ...t, orderIndex: (idx + 1) * 1000 }))
+
+      const finalTasks = [...remainingTasks.filter(t => t.boardId !== targetBoardId), ...newBoardList]
+
+      const newSavedTask = newBoardList.find(t => t.id === activeId)
+
+      // Fire API Request with newly computed board and index
+      if (newSavedTask) {
+        fetch('/api/tasks/move', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            taskId: activeId,
+            fromBoardId: activeTaskFinal.boardId,
+            toBoardId: targetBoardId,
+            newOrderIndex: newSavedTask.orderIndex
+          })
+        }).catch(error => {
+          console.error('Task move failed:', error)
+          onReload() // Revert to server state
+        })
       }
 
-      return newTasks
-    })
-
-    // Background DB Sync
-    fetch('/api/tasks/move', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        taskId: activeId,
-        fromBoardId: activeTaskFinal.boardId,
-        toBoardId: activeTaskFinal.boardId,
-        newOrderIndex: newOrderIndex
-      })
-    }).catch(error => {
-      console.error('Task move failed:', error)
-      onReload() // Revert to server state
+      return finalTasks
     })
   }
 
