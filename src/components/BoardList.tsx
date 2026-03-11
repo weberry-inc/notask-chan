@@ -55,7 +55,6 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
 
     const activeId = active.id
     const overId = over.id
-
     if (activeId === overId) return
 
     const isActiveTask = active.data.current?.type === 'Task'
@@ -64,39 +63,31 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
 
     if (!isActiveTask) return
 
-    // Dropping a task over another task
-    if (isActiveTask && isOverTask) {
-      setTasks(prevTasks => {
-        const activeIndex = prevTasks.findIndex(t => t.id === activeId)
-        const overIndex = prevTasks.findIndex(t => t.id === overId)
+    setTasks(prevTasks => {
+      const activeIndex = prevTasks.findIndex(t => t.id === activeId)
+      const overIndex = prevTasks.findIndex(t => t.id === overId)
 
-        if (prevTasks[activeIndex].boardId !== prevTasks[overIndex].boardId) {
-          const newTasks = [...prevTasks]
-          newTasks[activeIndex] = {
-            ...newTasks[activeIndex],
-            boardId: newTasks[overIndex].boardId,
-          }
-          return newTasks
-        }
-        return prevTasks
-      })
-    }
+      if (activeIndex === -1 || (overIndex === -1 && !isOverColumn)) return prevTasks
 
-    // Dropping a task over an empty column
-    if (isActiveTask && isOverColumn) {
-      setTasks(prevTasks => {
-        const activeIndex = prevTasks.findIndex(t => t.id === activeId)
-        if (prevTasks[activeIndex].boardId !== overId) {
-          const newTasks = [...prevTasks]
-          newTasks[activeIndex] = {
-            ...newTasks[activeIndex],
-            boardId: overId as string,
-          }
-          return newTasks
+      let newTasks = [...prevTasks]
+
+      if (isOverTask) {
+        if (newTasks[activeIndex].boardId !== newTasks[overIndex].boardId) {
+          newTasks[activeIndex] = { ...newTasks[activeIndex], boardId: newTasks[overIndex].boardId }
         }
-        return prevTasks
-      })
-    }
+        return arrayMove(newTasks, activeIndex, overIndex)
+      }
+
+      if (isOverColumn) {
+        if (newTasks[activeIndex].boardId !== overId) {
+          newTasks[activeIndex] = { ...newTasks[activeIndex], boardId: overId as string }
+          // Move roughly to end of column
+          return arrayMove(newTasks, activeIndex, newTasks.length - 1)
+        }
+      }
+
+      return prevTasks
+    })
   }
 
   const handleDragEnd = (e: DragEndEvent) => {
@@ -147,68 +138,63 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
     }
 
     // Handle Task Reordering
-    const activeTaskFinal = tasks.find(t => t.id === activeId)
-    if (!activeTaskFinal) return
+    const isActiveTask = active.data.current?.type === 'Task'
+    if (isActiveTask) {
+      setTasks(prevTasks => {
+        let newTasks = [...prevTasks]
+        const activeIndex = newTasks.findIndex(t => t.id === activeId)
+        const overIndex = newTasks.findIndex(t => t.id === overId)
 
-    let targetBoardId = activeTaskFinal.boardId
-    let isOverTask = false
+        if (activeIndex === -1) return prevTasks
 
-    if (over.data.current?.type === 'Task') {
-      targetBoardId = over.data.current.task.boardId
-      isOverTask = true
-    } else if (over.data.current?.type === 'Column') {
-      targetBoardId = over.id as string
-    }
+        const isOverTask = over.data.current?.type === 'Task'
+        const isOverColumn = over.data.current?.type === 'Column'
 
-    setTasks(prevTasks => {
-      // 1. Move task to new board and recompute orderIndexes for that board.
-      const boardTasks = prevTasks.filter(t => t.boardId === targetBoardId).sort((a, b) => a.orderIndex - b.orderIndex)
+        let targetBoardId = newTasks[activeIndex].boardId
 
-      let newOrderIndex = 1000
-      let activeOldIndex = prevTasks.findIndex(t => t.id === activeId)
-      let overOldIndex = prevTasks.findIndex(t => t.id === overId)
-
-      const remainingTasks = prevTasks.filter(t => t.id !== activeId)
-
-      let newBoardList = remainingTasks.filter(t => t.boardId === targetBoardId).sort((a, b) => a.orderIndex - b.orderIndex)
-
-      if (isOverTask) {
-        const overIndexInBoard = newBoardList.findIndex(t => t.id === overId)
-        if (overIndexInBoard !== -1) {
-          newBoardList.splice(overIndexInBoard, 0, { ...activeTaskFinal, boardId: targetBoardId }) // Insert before the over task
-        } else {
-          newBoardList.push({ ...activeTaskFinal, boardId: targetBoardId })
+        // Finalize array move locally
+        if (activeId !== overId) {
+          if (isOverTask && overIndex !== -1) {
+            targetBoardId = newTasks[overIndex].boardId
+            newTasks[activeIndex] = { ...newTasks[activeIndex], boardId: targetBoardId }
+            newTasks = arrayMove(newTasks, activeIndex, overIndex)
+          } else if (isOverColumn) {
+            targetBoardId = overId as string
+            newTasks[activeIndex] = { ...newTasks[activeIndex], boardId: targetBoardId }
+            newTasks = arrayMove(newTasks, activeIndex, newTasks.length - 1)
+          }
         }
-      } else {
-        newBoardList.push({ ...activeTaskFinal, boardId: targetBoardId })
-      }
 
-      // Re-assign accurate uniform indexes for the whole board to avoid conflicts
-      newBoardList = newBoardList.map((t, idx) => ({ ...t, orderIndex: (idx + 1) * 1000 }))
+        // Recompute uniform orderIndexes for the specific board
+        const boardTasks = newTasks.filter(t => t.boardId === targetBoardId)
 
-      const finalTasks = [...remainingTasks.filter(t => t.boardId !== targetBoardId), ...newBoardList]
-
-      const newSavedTask = newBoardList.find(t => t.id === activeId)
-
-      // Fire API Request with newly computed board and index
-      if (newSavedTask) {
-        fetch('/api/tasks/move', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            taskId: activeId,
-            fromBoardId: activeTaskFinal.boardId,
-            toBoardId: targetBoardId,
-            newOrderIndex: newSavedTask.orderIndex
-          })
-        }).catch(error => {
-          console.error('Task move failed:', error)
-          onReload() // Revert to server state
+        boardTasks.forEach((t, idx) => {
+          const finalIndex = newTasks.findIndex(task => task.id === t.id)
+          const newIdx = (idx + 1) * 1000
+          newTasks[finalIndex] = { ...newTasks[finalIndex], orderIndex: newIdx }
         })
-      }
 
-      return finalTasks
-    })
+        const newSavedTask = newTasks.find(t => t.id === activeId)
+
+        if (newSavedTask) {
+          fetch('/api/tasks/move', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              taskId: activeId,
+              fromBoardId: active.data.current?.task.boardId, // original
+              toBoardId: targetBoardId,
+              newOrderIndex: newSavedTask.orderIndex
+            })
+          }).catch(error => {
+            console.error('Task move failed:', error)
+            onReload() // Revert to server state
+          })
+        }
+
+        return newTasks
+      })
+    }
   }
 
   const tasksByBoard = useMemo(() => {
