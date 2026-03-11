@@ -69,7 +69,7 @@ const BoardColumn = memo(function BoardColumn({ board, tasks, onAddTask, onEditT
         ...style,
         width: '300px',
         minWidth: '300px',
-        backgroundColor: 'var(--board-bg)',
+        backgroundColor: board.color ? `${COLORS.find(c => c.value === board.color)?.code}15` : 'var(--board-bg)',
         borderRadius: 'var(--radius-lg)',
         borderTop: board.color ? `4px solid ${COLORS.find(c => c.value === board.color)?.code || board.color}` : '4px solid transparent',
         display: 'flex',
