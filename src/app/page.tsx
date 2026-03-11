@@ -73,14 +73,7 @@ export default function Home() {
     return () => clearTimeout(timer)
   }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
-  // Background Auto-Polling (Live Sync)
-  // Polls every 3 seconds to get updates from other users.
-  useEffect(() => {
-    const pollInterval = setInterval(() => {
-      fetchData()
-    }, 3000)
-    return () => clearInterval(pollInterval)
-  }, [assigneeFilter, searchQuery, showArchived, showDeleted])
+
 
   // Open modal for new task
   const openNewTaskModal = useCallback((boardId: string) => {
