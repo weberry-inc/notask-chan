@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Board, Task, Member } from '@/lib/types'
 import Header from '@/components/Header'
 import BoardList from '@/components/BoardList'
@@ -20,13 +20,19 @@ export default function Home() {
   // Loading state
   const [isLoading, setIsLoading] = useState(true)
 
+  // Interaction tracking (Ref so it doesn't trigger re-renders or get stale in closures)
+  const isInteracting = React.useRef(false)
+
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [defaultBoardId, setDefaultBoardId] = useState<string>('')
 
   // Fetch data
-  const fetchData = async () => {
+  const fetchData = async (isBackground = false) => {
+    // Prevent fetching if the user is interacting to avoid hydration snaps back
+    if (isBackground && isInteracting.current) return
+
     try {
       // Build query string for tasks
       const params = new URLSearchParams()
@@ -45,38 +51,42 @@ export default function Home() {
       const t = await tasksRes.json()
       const m = await membersRes.json()
 
+      // If they started interacting WHILE we were fetching, don't overwrite the UI with stale data
+      if (isBackground && isInteracting.current) return
+
       setBoards(b)
       setTasks(t)
       if (Array.isArray(m)) setMembers(m)
 
       if (!members.length && t.length > 0) {
-        // Just extract members from the first few tasks for MVP, or we would have a /api/members route
-        // To be safe, we might just hardcode the two members or let the server return them.
-        // For now, let's assume we fetch them or just pull unique assignees out.
-        // Actually, let's fetch members if possible. We didn't create /members API.
-        // We know the members are '未来' and 'ゆうくん'. We can extract from passed tasks or just leave them dynamically empty for a moment.
-        // Let's create an API endpoint in the task.
       }
     } catch (e) {
       console.error(e)
     } finally {
-      // If we are currently fetching in the background, don't show the loading screen
       if (isLoading) setIsLoading(false)
     }
   }
 
-  // Refetch when filters change or when polling
+  // Refetch when filters change immediately
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchData()
+      fetchData(false)
     }, 300)
     return () => clearTimeout(timer)
   }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
+  // Background polling every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchData(true)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
 
   // Open modal for new task
   const openNewTaskModal = useCallback((boardId: string) => {
+    isInteracting.current = true
     setEditingTask(null)
     setDefaultBoardId(boardId)
     setIsModalOpen(true)
@@ -84,13 +94,21 @@ export default function Home() {
 
   // Open modal for editing
   const openEditTaskModal = useCallback((task: Task) => {
+    isInteracting.current = true
     setEditingTask(task)
     setDefaultBoardId(task.boardId)
     setIsModalOpen(true)
   }, [])
 
+  // Handle modal close
+  const handleModalClose = useCallback(() => {
+    isInteracting.current = false
+    setIsModalOpen(false)
+  }, [])
+
   // Quick toggle completion status
   const handleToggleComplete = useCallback(async (task: Task, newStatus: boolean) => {
+    isInteracting.current = true
     // Optimistic UI update
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, isCompleted: newStatus } : t))
 
@@ -102,13 +120,15 @@ export default function Home() {
       })
     } catch (e) {
       console.error('Failed to toggle completion status', e)
-      fetchData() // Revert to server state if failed
+      fetchData(false) // Revert to server state if failed
+    } finally {
+      isInteracting.current = false
     }
   }, [])
 
   // Reload action
   const handleReload = useCallback(() => {
-    fetchData()
+    fetchData(false)
   }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
   // Create new board
@@ -196,6 +216,8 @@ export default function Home() {
           onDeleteBoard={handleDeleteBoard}
           onEditBoard={handleEditBoard}
           onReload={handleReload}
+          onInteractionStart={() => { isInteracting.current = true }}
+          onInteractionEnd={() => { isInteracting.current = false }}
         />
 
         {/* New Board Creation Column */}

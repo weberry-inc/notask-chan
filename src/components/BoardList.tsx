@@ -29,9 +29,11 @@ type BoardListProps = {
   onDeleteBoard?: (boardId: string) => void
   onEditBoard?: (boardId: string, newTitle: string, newColor?: string | null) => void
   onReload: () => void
+  onInteractionStart?: () => void
+  onInteractionEnd?: () => void
 }
 
-const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, onAddTask, onEditTask, onToggleComplete, onDeleteBoard, onEditBoard, onReload }: BoardListProps) {
+const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, onAddTask, onEditTask, onToggleComplete, onDeleteBoard, onEditBoard, onReload, onInteractionStart, onInteractionEnd }: BoardListProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [activeBoard, setActiveBoard] = useState<Board | null>(null)
 
@@ -41,6 +43,7 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
   )
 
   const handleDragStart = (e: DragStartEvent) => {
+    onInteractionStart?.()
     const { active } = e
     if (active.data.current?.type === 'Task') {
       setActiveTask(active.data.current.task)
@@ -69,7 +72,7 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
 
       if (activeIndex === -1 || (overIndex === -1 && !isOverColumn)) return prevTasks
 
-      let newTasks = [...prevTasks]
+      const newTasks = [...prevTasks]
 
       if (isOverTask) {
         if (newTasks[activeIndex].boardId !== newTasks[overIndex].boardId) {
@@ -90,11 +93,21 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
     })
   }
 
+  const handleDragCancel = () => {
+    setActiveTask(null)
+    setActiveBoard(null)
+    onInteractionEnd?.()
+  }
+
   const handleDragEnd = (e: DragEndEvent) => {
     setActiveTask(null)
     setActiveBoard(null)
     const { active, over } = e
-    if (!over) return
+
+    if (!over) {
+      onInteractionEnd?.()
+      return
+    }
 
     const activeId = active.id
     const overId = over.id
@@ -116,7 +129,10 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
           const oldIndex = prevBoards.findIndex(b => b.id === activeId)
           const newIndex = prevBoards.findIndex(b => b.id === targetBoardId)
 
-          if (oldIndex === -1 || newIndex === -1) return prevBoards
+          if (oldIndex === -1 || newIndex === -1) {
+            onInteractionEnd?.()
+            return prevBoards
+          }
 
           let newBoards = arrayMove(prevBoards, oldIndex, newIndex)
           // Re-calculate order Indexes (1000 interval)
@@ -129,10 +145,14 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
             body: JSON.stringify({
               boardOrders: newBoards.map(b => ({ id: b.id, orderIndex: b.orderIndex }))
             })
+          }).finally(() => {
+            onInteractionEnd?.()
           }).catch(console.error)
 
           return newBoards
         })
+      } else {
+        onInteractionEnd?.()
       }
       return
     }
@@ -140,12 +160,15 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
     // Handle Task Reordering
     const isActiveTask = active.data.current?.type === 'Task'
     if (isActiveTask) {
-      setTasks(prevTasks => {
+      setTasks((prevTasks: Task[]) => {
         let newTasks = [...prevTasks]
         const activeIndex = newTasks.findIndex(t => t.id === activeId)
         const overIndex = newTasks.findIndex(t => t.id === overId)
 
-        if (activeIndex === -1) return prevTasks
+        if (activeIndex === -1) {
+          onInteractionEnd?.()
+          return prevTasks
+        }
 
         const isOverTask = over.data.current?.type === 'Task'
         const isOverColumn = over.data.current?.type === 'Column'
@@ -176,7 +199,7 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
 
         const newSavedTask = newTasks.find(t => t.id === activeId)
 
-        if (newSavedTask) {
+        if (newSavedTask && activeId !== overId) {
           fetch('/api/tasks/move', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -189,11 +212,17 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
           }).catch(error => {
             console.error('Task move failed:', error)
             onReload() // Revert to server state
+          }).finally(() => {
+            onInteractionEnd?.()
           })
+        } else {
+          onInteractionEnd?.()
         }
 
         return newTasks
       })
+    } else {
+      onInteractionEnd?.()
     }
   }
 
@@ -218,6 +247,8 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+
     >
       <SortableContext items={boards.map(b => b.id)} strategy={horizontalListSortingStrategy}>
         {boards.map(board => {
