@@ -1,45 +1,77 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import useSWR from 'swr'
+import { useState, useEffect, useCallback } from 'react'
 import { Board, Task, Member } from '@/lib/types'
 import Header from '@/components/Header'
 import BoardList from '@/components/BoardList'
 import TaskModal from '@/components/TaskModal'
 
-// SWR global fetcher function
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
-
 export default function Home() {
+  const [boards, setBoards] = useState<Board[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [members, setMembers] = useState<Member[]>([])
+
   // Filters
   const [assigneeFilter, setAssigneeFilter] = useState('all') // all | unassigned | memberId
   const [searchQuery, setSearchQuery] = useState('')
   const [showArchived, setShowArchived] = useState(false)
   const [showDeleted, setShowDeleted] = useState(false)
 
-  // Build query string for tasks based on filters
-  const taskParams = new URLSearchParams()
-  if (assigneeFilter !== 'all') taskParams.append('assignee', assigneeFilter)
-  if (searchQuery) taskParams.append('q', searchQuery)
-  if (showArchived) taskParams.append('showArchived', 'true')
-  if (showDeleted) taskParams.append('showDeleted', 'true')
-
-  // Setup SWR data hooks
-  // Polling is configured via refreshInterval: 10000 -> fetch automatically every 10 seconds.
-  // It also refetches automatically on focus (default behavior) which is great for natural sync.
-  const { data: boards = [], mutate: mutateBoards } = useSWR<Board[]>('/api/boards', fetcher, { refreshInterval: 10000 })
-  const { data: tasks = [], mutate: mutateTasks } = useSWR<Task[]>(`/api/tasks?${taskParams.toString()}`, fetcher, { refreshInterval: 10000 })
-  const { data: members = [] } = useSWR<Member[]>('/api/members', fetcher)
-
-  // Derive loading state from SWR
-  const isLoading = !boards.length && !tasks.length && !members.length;
+  // Loading state
+  const [isLoading, setIsLoading] = useState(true)
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [defaultBoardId, setDefaultBoardId] = useState<string>('')
 
-  // SWR automatically handles refetching when query params change via the URL string dependency in useSWR.
+  // Fetch data
+  const fetchData = async () => {
+    try {
+      // Build query string for tasks
+      const params = new URLSearchParams()
+      if (assigneeFilter !== 'all') params.append('assignee', assigneeFilter)
+      if (searchQuery) params.append('q', searchQuery)
+      if (showArchived) params.append('showArchived', 'true')
+      if (showDeleted) params.append('showDeleted', 'true')
+
+      const [boardsRes, tasksRes, membersRes] = await Promise.all([
+        fetch('/api/boards'),
+        fetch(`/api/tasks?${params.toString()}`),
+        fetch('/api/members')
+      ])
+
+      const b = await boardsRes.json()
+      const t = await tasksRes.json()
+      const m = await membersRes.json()
+
+      setBoards(b)
+      setTasks(t)
+      if (Array.isArray(m)) setMembers(m)
+
+      if (!members.length && t.length > 0) {
+        // Just extract members from the first few tasks for MVP, or we would have a /api/members route
+        // To be safe, we might just hardcode the two members or let the server return them.
+        // For now, let's assume we fetch them or just pull unique assignees out.
+        // Actually, let's fetch members if possible. We didn't create /members API.
+        // We know the members are '未来' and 'ゆうくん'. We can extract from passed tasks or just leave them dynamically empty for a moment.
+        // Let's create an API endpoint in the task.
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      // If we are currently fetching in the background, don't show the loading screen
+      if (isLoading) setIsLoading(false)
+    }
+  }
+
+  // Refetch when filters change or when polling
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchData()
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
 
 
@@ -60,10 +92,7 @@ export default function Home() {
   // Quick toggle completion status
   const handleToggleComplete = useCallback(async (task: Task, newStatus: boolean) => {
     // Optimistic UI update
-    mutateTasks((prevTasks: Task[] | undefined) => {
-      const currentTasks = prevTasks || [];
-      return currentTasks.map(t => t.id === task.id ? { ...t, isCompleted: newStatus } : t);
-    }, false)
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, isCompleted: newStatus } : t))
 
     try {
       await fetch(`/api/tasks/${task.id}`, {
@@ -71,18 +100,16 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isCompleted: newStatus })
       })
-      mutateTasks() // Revalidate with server
     } catch (e) {
       console.error('Failed to toggle completion status', e)
-      mutateTasks() // Revert to server state if failed
+      fetchData() // Revert to server state if failed
     }
-  }, [mutateTasks])
+  }, [])
 
   // Reload action
   const handleReload = useCallback(() => {
-    mutateBoards()
-    mutateTasks()
-  }, [mutateBoards, mutateTasks])
+    fetchData()
+  }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
   // Create new board
   const [newBoardTitle, setNewBoardTitle] = useState('')
@@ -98,7 +125,7 @@ export default function Home() {
         body: JSON.stringify({ title: newBoardTitle.trim() })
       })
       setNewBoardTitle('')
-      mutateBoards()
+      fetchData()
     } catch (e) {
       console.error('Failed to create board', e)
     } finally {
@@ -112,20 +139,16 @@ export default function Home() {
       await fetch(`/api/boards/${boardId}`, {
         method: 'DELETE',
       })
-      mutateBoards()
-      mutateTasks()
+      fetchData()
     } catch (e) {
       console.error('Failed to delete board', e)
     }
-  }, [mutateBoards, mutateTasks])
+  }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
   // Edit board
   const handleEditBoard = useCallback(async (boardId: string, newTitle: string, newColor?: string | null) => {
     // Optimistic UI update
-    mutateBoards((prevBoards: Board[] | undefined) => {
-      const currentBoards = prevBoards || [];
-      return currentBoards.map(b => b.id === boardId ? { ...b, title: newTitle, color: newColor ?? b.color } : b);
-    }, false)
+    setBoards(prev => prev.map(b => b.id === boardId ? { ...b, title: newTitle, color: newColor ?? b.color } : b))
 
     try {
       await fetch(`/api/boards/${boardId}`, {
@@ -133,12 +156,11 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: newTitle, color: newColor })
       })
-      mutateBoards()
     } catch (e) {
       console.error('Failed to update board', e)
-      mutateBoards() // Revert to server state if failed
+      fetchData() // Revert to server state if failed
     }
-  }, [mutateBoards])
+  }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
   if (isLoading) {
     return (
@@ -166,20 +188,8 @@ export default function Home() {
         <BoardList
           boards={boards}
           tasks={tasks}
-          setBoards={(b) => {
-            if (typeof b === 'function') {
-              mutateBoards((prev) => b(prev || []), false);
-            } else {
-              mutateBoards(b, false);
-            }
-          }}
-          setTasks={(t) => {
-            if (typeof t === 'function') {
-              mutateTasks((prev) => t(prev || []), false);
-            } else {
-              mutateTasks(t, false);
-            }
-          }}
+          setBoards={setBoards}
+          setTasks={setTasks}
           onAddTask={openNewTaskModal}
           onEditTask={openEditTaskModal}
           onToggleComplete={handleToggleComplete}
