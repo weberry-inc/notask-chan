@@ -84,15 +84,18 @@ export default function Home() {
 
   // Subscribe to real-time updates via Pusher
   useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_PUSHER_KEY) {
+    const pusherKey = (process.env.NEXT_PUBLIC_PUSHER_KEY || '').replace(/^\[(.+)\]$/, '$1')
+    const pusherCluster = (process.env.NEXT_PUBLIC_PUSHER_CLUSTER || '').replace(/^\[(.+)\]$/, '$1')
+
+    if (!pusherKey) {
       console.warn('NEXT_PUBLIC_PUSHER_KEY is missing')
       return
     }
 
-    console.log('Initializing Pusher...', process.env.NEXT_PUBLIC_PUSHER_KEY)
+    console.log('Initializing Pusher...', pusherKey)
 
-    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+    const pusher = new Pusher(pusherKey, {
+      cluster: pusherCluster,
     })
 
     const channel = pusher.subscribe('weberry-board')
@@ -101,7 +104,7 @@ export default function Home() {
       console.log('Pusher connected successfully')
     })
 
-    pusher.connection.bind('error', (err: any) => {
+    pusher.connection.bind('error', (err: unknown) => {
       console.error('Pusher connection error:', err)
     })
 
