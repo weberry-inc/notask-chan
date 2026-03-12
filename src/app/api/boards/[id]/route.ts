@@ -29,18 +29,6 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
   const { id } = await context.params
 
   try {
-    // Check if there are remaining tasks
-    const count = await prisma.task.count({
-      where: { boardId: id, deletedAt: null },
-    })
-
-    if (count > 0) {
-      return NextResponse.json(
-        { error: 'Cannot delete board with remaining active tasks.' },
-        { status: 409 }
-      )
-    }
-
     await prisma.board.delete({
       where: { id },
     })
