@@ -76,27 +76,51 @@ export default function Home() {
     return () => clearTimeout(timer)
   }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
+  // Ref to always have the latest fetchData available to Pusher callback without re-subscribing
+  const fetchDataRef = useRef(fetchData)
+  useEffect(() => {
+    fetchDataRef.current = fetchData
+  })
+
   // Subscribe to real-time updates via Pusher
   useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_PUSHER_KEY) return
+    if (!process.env.NEXT_PUBLIC_PUSHER_KEY) {
+      console.warn('NEXT_PUBLIC_PUSHER_KEY is missing')
+      return
+    }
+
+    console.log('Initializing Pusher...', process.env.NEXT_PUBLIC_PUSHER_KEY)
 
     const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
     })
 
     const channel = pusher.subscribe('weberry-board')
+
+    pusher.connection.bind('connected', () => {
+      console.log('Pusher connected successfully')
+    })
+
+    pusher.connection.bind('error', (err: any) => {
+      console.error('Pusher connection error:', err)
+    })
+
     channel.bind('updated', () => {
+      console.log('Real-time update received')
       // Background fetch if NOT currently interacting
       if (!isInteracting.current) {
-        fetchData(true)
+        fetchDataRef.current(true)
+      } else {
+        console.log('Update skipped because user is interacting')
       }
     })
 
     return () => {
+      console.log('Disconnecting Pusher...')
       pusher.unsubscribe('weberry-board')
       pusher.disconnect()
     }
-  }, [assigneeFilter, searchQuery, showArchived, showDeleted])
+  }, []) // Run only once on mount
 
 
   // Open modal for new task
