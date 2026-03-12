@@ -16,7 +16,17 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
     }
 
-    const dataToUpdate: any = {}
+    const dataToUpdate: {
+      title?: string
+      description?: string | null
+      assigneeMemberId?: string | null
+      isCompleted?: boolean
+      completedAt?: Date | null
+      archivedAt?: Date | null
+      deletedAt?: Date | null
+      boardId?: string
+      orderIndex?: number
+    } = {}
     if (title !== undefined) dataToUpdate.title = title
     if (description !== undefined) dataToUpdate.description = description
 
@@ -44,6 +54,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         assignee: true,
       }
     })
+
+    // Notify other clients
+    const { pusherServer } = await import('@/lib/pusher')
+    await pusherServer.trigger('weberry-board', 'updated', {})
 
     return NextResponse.json(task)
   } catch (error) {

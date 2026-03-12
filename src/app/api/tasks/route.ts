@@ -18,7 +18,14 @@ export async function GET(request: Request) {
       })
     }
 
-    const where: any = { workspaceId: workspace.id }
+    const where: {
+      workspaceId: string
+      boardId?: string
+      assigneeMemberId?: string | null
+      archivedAt?: Date | null
+      deletedAt?: Date | null
+      OR?: { title?: { contains: string } | string; description?: { contains: string } | string }[]
+    } = { workspaceId: workspace.id }
 
     if (boardId) where.boardId = boardId
     if (assignee) {
@@ -95,6 +102,10 @@ export async function POST(request: Request) {
         assignee: true
       }
     })
+
+    // Notify other clients
+    const { pusherServer } = await import('@/lib/pusher')
+    await pusherServer.trigger('weberry-board', 'updated', {})
 
     return NextResponse.json(task, { status: 201 })
   } catch (error) {

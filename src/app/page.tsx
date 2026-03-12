@@ -5,6 +5,7 @@ import { Board, Task, Member } from '@/lib/types'
 import Header from '@/components/Header'
 import BoardList from '@/components/BoardList'
 import TaskModal from '@/components/TaskModal'
+import Pusher from 'pusher-js'
 
 export default function Home() {
   const [boards, setBoards] = useState<Board[]>([])
@@ -21,7 +22,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true)
 
   // Interaction tracking (Ref so it doesn't trigger re-renders or get stale in closures)
-  const isInteracting = React.useRef(false)
+  const isInteracting = useRef(false)
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -75,12 +76,26 @@ export default function Home() {
     return () => clearTimeout(timer)
   }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
-  // Background polling every 5 seconds
+  // Subscribe to real-time updates via Pusher
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchData(true)
-    }, 5000)
-    return () => clearInterval(interval)
+    if (!process.env.NEXT_PUBLIC_PUSHER_KEY) return
+
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+    })
+
+    const channel = pusher.subscribe('weberry-board')
+    channel.bind('updated', () => {
+      // Background fetch if NOT currently interacting
+      if (!isInteracting.current) {
+        fetchData(true)
+      }
+    })
+
+    return () => {
+      pusher.unsubscribe('weberry-board')
+      pusher.disconnect()
+    }
   }, [assigneeFilter, searchQuery, showArchived, showDeleted])
 
 
@@ -261,7 +276,7 @@ export default function Home() {
           task={editingTask}
           boardId={defaultBoardId}
           boards={boards}
-          onClose={() => setIsModalOpen(false)}
+          onClose={handleModalClose}
           onReload={handleReload}
         />
       )}

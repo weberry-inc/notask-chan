@@ -11,6 +11,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       include: { assignee: true }
     })
 
+    // Notify other clients
+    const { pusherServer } = await import('@/lib/pusher')
+    await pusherServer.trigger('weberry-board', 'updated', {})
+
     return NextResponse.json(task)
   } catch (error) {
     console.error('Failed to unarchive task:', error)

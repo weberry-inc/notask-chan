@@ -20,6 +20,10 @@ export async function POST(request: Request) {
       )
     )
 
+    // Notify other clients
+    const { pusherServer } = await import('@/lib/pusher')
+    await pusherServer.trigger('weberry-board', 'updated', {})
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Failed to reorder boards:', error)

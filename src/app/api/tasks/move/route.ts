@@ -21,6 +21,10 @@ export async function POST(request: Request) {
       }
     })
 
+    // Notify other clients
+    const { pusherServer } = await import('@/lib/pusher')
+    await pusherServer.trigger('weberry-board', 'updated', {})
+
     return NextResponse.json(task)
   } catch (error) {
     console.error('Failed to move task:', error)

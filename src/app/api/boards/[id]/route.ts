@@ -8,7 +8,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const body = await request.json()
     const { title, color, orderIndex } = body
 
-    const dataToUpdate: any = {}
+    const dataToUpdate: { title?: string; color?: string; orderIndex?: number } = {}
     if (title !== undefined) dataToUpdate.title = title
     if (color !== undefined) dataToUpdate.color = color
     if (orderIndex !== undefined) dataToUpdate.orderIndex = orderIndex
@@ -17,6 +17,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       where: { id },
       data: dataToUpdate,
     })
+
+    // Notify other clients
+    const { pusherServer } = await import('@/lib/pusher')
+    await pusherServer.trigger('weberry-board', 'updated', {})
 
     return NextResponse.json(board)
   } catch (error) {
@@ -32,6 +36,10 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     await prisma.board.delete({
       where: { id },
     })
+
+    // Notify other clients
+    const { pusherServer } = await import('@/lib/pusher')
+    await pusherServer.trigger('weberry-board', 'updated', {})
 
     return new NextResponse(null, { status: 204 })
   } catch (error) {

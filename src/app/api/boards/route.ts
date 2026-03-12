@@ -48,6 +48,11 @@ export async function POST(request: Request) {
         workspaceId: wsId,
       },
     })
+
+    // Notify other clients
+    const { pusherServer } = await import('@/lib/pusher')
+    await pusherServer.trigger('weberry-board', 'updated', {})
+
     return NextResponse.json(board, { status: 201 })
   } catch (error) {
     console.error('Failed to create board:', error)
