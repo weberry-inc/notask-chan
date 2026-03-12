@@ -30,7 +30,7 @@ export default function Home() {
   const [defaultBoardId, setDefaultBoardId] = useState<string>('')
 
   // Fetch data
-  const fetchData = async (isBackground = false) => {
+  const fetchData = useCallback(async (isBackground = false) => {
     // Prevent fetching if the user is interacting to avoid hydration snaps back
     if (isBackground && isInteracting.current) return
 
@@ -59,14 +59,12 @@ export default function Home() {
       setTasks(t)
       if (Array.isArray(m)) setMembers(m)
 
-      if (!members.length && t.length > 0) {
-      }
     } catch (e) {
       console.error(e)
     } finally {
       if (isLoading) setIsLoading(false)
     }
-  }
+  }, [assigneeFilter, searchQuery, showArchived, showDeleted, isLoading])
 
   // Refetch when filters change immediately
   useEffect(() => {
@@ -146,6 +144,14 @@ export default function Home() {
   const handleModalClose = useCallback(() => {
     isInteracting.current = false
     setIsModalOpen(false)
+  }, [])
+
+  const handleInteractionStart = useCallback(() => {
+    isInteracting.current = true
+  }, [])
+
+  const handleInteractionEnd = useCallback(() => {
+    isInteracting.current = false
   }, [])
 
   // Quick toggle completion status
@@ -258,8 +264,8 @@ export default function Home() {
           onDeleteBoard={handleDeleteBoard}
           onEditBoard={handleEditBoard}
           onReload={handleReload}
-          onInteractionStart={() => { isInteracting.current = true }}
-          onInteractionEnd={() => { isInteracting.current = false }}
+          onInteractionStart={handleInteractionStart}
+          onInteractionEnd={handleInteractionEnd}
         />
 
         {/* New Board Creation Column */}

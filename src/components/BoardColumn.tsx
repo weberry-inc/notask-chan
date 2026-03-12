@@ -166,10 +166,10 @@ const BoardColumn = memo(function BoardColumn({ board, tasks, onAddTask, onEditT
           overflowY: 'auto',
           display: 'flex',
           flexDirection: 'column',
-          minHeight: '100px',
+          minHeight: '150px', // Increased slightly for better empty drop target
         }}
       >
-        <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext id={board.id} items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map(task => (
             <TaskCard key={task.id} task={task} onClick={onEditTask} onToggleComplete={onToggleComplete} />
           ))}

@@ -68,23 +68,35 @@ const BoardList = memo(function BoardList({ boards, tasks, setTasks, setBoards, 
 
     setTasks(prevTasks => {
       const activeIndex = prevTasks.findIndex(t => t.id === activeId)
-      const overIndex = prevTasks.findIndex(t => t.id === overId)
-
-      if (activeIndex === -1 || (overIndex === -1 && !isOverColumn)) return prevTasks
+      if (activeIndex === -1) return prevTasks
 
       const newTasks = [...prevTasks]
+      const activeTask = newTasks[activeIndex]
 
       if (isOverTask) {
-        if (newTasks[activeIndex].boardId !== newTasks[overIndex].boardId) {
-          newTasks[activeIndex] = { ...newTasks[activeIndex], boardId: newTasks[overIndex].boardId }
+        const overIndex = prevTasks.findIndex(t => t.id === overId)
+        if (overIndex === -1) return prevTasks
+
+        const overTask = newTasks[overIndex]
+
+        if (activeTask.boardId !== overTask.boardId) {
+          newTasks[activeIndex] = { ...activeTask, boardId: overTask.boardId }
+          return arrayMove(newTasks, activeIndex, overIndex)
         }
+
         return arrayMove(newTasks, activeIndex, overIndex)
       }
 
       if (isOverColumn) {
-        if (newTasks[activeIndex].boardId !== overId) {
-          newTasks[activeIndex] = { ...newTasks[activeIndex], boardId: overId as string }
-          // Move roughly to end of column
+        const targetBoardId = overId as string
+        if (activeTask.boardId !== targetBoardId) {
+          newTasks[activeIndex] = { ...activeTask, boardId: targetBoardId }
+
+          // When moving to an empty column, moving to the end of the global list
+          // might be confusing if there are many columns.
+          // However, for the UI it doesn't strictly matter as long as the boardId is right.
+          // But to be "smooth", we want to avoid massive jumps.
+          // Actually, let's just move it to the end of the array to ensure it's at the bottom.
           return arrayMove(newTasks, activeIndex, newTasks.length - 1)
         }
       }
